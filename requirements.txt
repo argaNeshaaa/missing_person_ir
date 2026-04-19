@@ -1,0 +1,21 @@
+# Core ML
+torch>=2.0.0
+torchvision>=0.15.0
+git+https://github.com/openai/CLIP.git
+
+# FAISS — pilih salah satu:
+faiss-cpu>=1.7.4       # CPU only (default)
+# faiss-gpu>=1.7.4     # GPU (uncomment jika ada CUDA)
+
+# API Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+pydantic>=2.0.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.66.0
