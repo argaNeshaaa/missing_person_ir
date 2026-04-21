@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
-
+from preprocessing.face_crop import crop_face
 from .clip_encoder import CLIPEncoder
 from .faiss_index import FAISSIndexManager, SearchResult
 
@@ -111,7 +111,7 @@ class MissingPersonIR:
             try:
                 img = Image.open(path).convert("RGB")
                 pil_images.append(img)
-
+                face_image = crop_face(img, padding=0.3)
                 # Buat metadata otomatis dari nama file jika tidak ada JSON
                 stem = path.stem
                 parts = stem.split("_", 1)
@@ -132,7 +132,7 @@ class MissingPersonIR:
 
         # Batch encode dengan CLIP
         logger.info("Memulai encoding dengan CLIP...")
-        embeddings = self.encoder.encode_batch(pil_images, batch_size=batch_size)
+        embeddings = self.encoder.encode_batch(face_image, batch_size=batch_size)
 
         # Training FAISS (diperlukan untuk IVF/IVFPQ)
         if not self.index_manager._is_trained:
@@ -206,7 +206,8 @@ class MissingPersonIR:
         # Step 1: Encode query dengan CLIP
         logger.info("Encoding query image dengan CLIP...")
         t0 = time.perf_counter()
-        query_embedding = self.encoder.encode_image(query_image)
+        face_query = crop_face(query_image, padding=0.3)
+        query_embedding = self.encoder.encode_image(face_query)
 
         # Step 2: FAISS similarity search
         logger.info(f"Menjalankan FAISS search (top_k={top_k})...")
