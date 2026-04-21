@@ -47,6 +47,7 @@ def cmd_index(args):
         data_dir=args.data_dir,
         metadata_file=args.metadata,
         batch_size=args.batch_size,
+        save_crops_dir="debug_crops_real"
     )
     ir.save(INDEX_DIR)
 
