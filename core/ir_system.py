@@ -105,13 +105,19 @@ class MissingPersonIR:
 
         # Encode semua gambar
         pil_images = []
+        face_images = []
         metadata_list = []
 
         for path in image_paths:
             try:
                 img = Image.open(path).convert("RGB")
-                pil_images.append(img)
                 face_image = crop_face(img, padding=0.3)
+                if face_image is None:
+                    logger.warning(f"Wajah tidak terdeteksi, menggunakan gambar asli: {path}")
+                    face_image = img
+
+                pil_images.append(img)
+                face_images.append(face_image)
                 # Buat metadata otomatis dari nama file jika tidak ada JSON
                 stem = path.stem
                 parts = stem.split("_", 1)
@@ -130,9 +136,12 @@ class MissingPersonIR:
             except Exception as e:
                 logger.warning(f"Gagal load gambar {path}: {e}")
 
+            if len(face_images) == 0:
+                raise RuntimeError("Tidak ada gambar valid untuk diindex! Pastikan format file benar dan gambar dapat dibuka.")
+            
         # Batch encode dengan CLIP
         logger.info("Memulai encoding dengan CLIP...")
-        embeddings = self.encoder.encode_batch(face_image, batch_size=batch_size)
+        embeddings = self.encoder.encode_batch(face_images, batch_size=batch_size)
 
         # Training FAISS (diperlukan untuk IVF/IVFPQ)
         if not self.index_manager._is_trained:
@@ -206,8 +215,7 @@ class MissingPersonIR:
         # Step 1: Encode query dengan CLIP
         logger.info("Encoding query image dengan CLIP...")
         t0 = time.perf_counter()
-        face_query = crop_face(query_image, padding=0.3)
-        query_embedding = self.encoder.encode_image(face_query)
+        query_embedding = self.encoder.encode_image(query_image)
 
         # Step 2: FAISS similarity search
         logger.info(f"Menjalankan FAISS search (top_k={top_k})...")
