@@ -1,0 +1,5 @@
+{
+  "dim": 512,
+  "index_type": "ivf",
+  "total_vectors": 117
+}
