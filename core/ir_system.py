@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
-from preprocessing.face_crop import crop_face
+from preprocessing.face_crop import crop_face, load_image_with_exif
 from .clip_encoder import CLIPEncoder
 from .faiss_index import FAISSIndexManager, SearchResult
 
@@ -118,7 +118,7 @@ class MissingPersonIR:
 
         for path in image_paths:
             try:
-                img = Image.open(path).convert("RGB")
+                img = load_image_with_exif(path)
                 face_image = crop_face(img, padding=0.3)
                 if face_image is None:
                     logger.warning(f"Wajah tidak terdeteksi, menggunakan gambar asli: {path}")
@@ -180,6 +180,15 @@ class MissingPersonIR:
             image   : path gambar atau PIL.Image
             metadata: dict berisi person_id, name, dll.
         """
+
+        if isinstance(image, (str, Path)):
+            image = load_image_with_exif(image)
+
+        face_image = crop_face(image, padding=0.3)
+        if face_image is None:
+            logger.warning(f"Wajah tidak terdeteksi, menggunakan gambar asli: {image}")
+            face_image = image
+
         embedding = self.encoder.encode_image(image)
         embedding = embedding.reshape(1, -1)
 
@@ -234,7 +243,7 @@ class MissingPersonIR:
         
         if isinstance(query_image, (str, Path)):
             query_name = Path(query_image).stem
-            query_image = Image.open(query_image).convert("RGB")
+            query_image = load_image_with_exif(query_image)
 
         # ✅ Crop face dulu, konsisten dengan proses indexing
         face_query = crop_face(query_image, padding=0.3)

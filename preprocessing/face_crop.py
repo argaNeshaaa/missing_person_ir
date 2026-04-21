@@ -1,7 +1,7 @@
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-from PIL import Image
+from PIL import Image, ImageOps
 import urllib.request
 import os
 
@@ -51,3 +51,14 @@ def crop_face(image: Image.Image, padding: float = 0.3) -> Image.Image:
     y2 = min(h, y2 + pad_y)
 
     return image.crop((x1, y1, x2, y2))
+
+    from PIL import Image, ImageOps
+
+def load_image_with_exif(path) -> Image.Image:
+    """
+    Load gambar dan otomatis koreksi orientasi berdasarkan EXIF metadata.
+    Mencegah masalah rotasi 90°/180°/270° pada foto dari kamera/smartphone.
+    """
+    img = Image.open(path).convert("RGB")
+    img = ImageOps.exif_transpose(img)  # ← kunci utama, koreksi orientasi EXIF
+    return img
