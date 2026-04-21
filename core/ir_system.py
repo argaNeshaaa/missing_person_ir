@@ -126,7 +126,7 @@ class MissingPersonIR:
                     crop_status = "no_face"
                 else:
                     crop_status = "face_cropped"
-                    
+
                 if crops_path is not None:
                     save_name = f"{path.stem}_{crop_status}.jpg"
                     face_image.save(crops_path / save_name, "JPEG")
@@ -230,7 +230,17 @@ class MissingPersonIR:
         # Step 1: Encode query dengan CLIP
         logger.info("Encoding query image dengan CLIP...")
         t0 = time.perf_counter()
-        query_embedding = self.encoder.encode_image(query_image)
+        
+        if isinstance(query_image, (str, Path)):
+            query_image = Image.open(query_image).convert("RGB")
+
+        # ✅ Crop face dulu, konsisten dengan proses indexing
+        face_query = crop_face(query_image, padding=0.3)
+        if face_query is None:
+            logger.warning("Wajah tidak terdeteksi pada query, menggunakan gambar asli.")
+            face_query = query_image
+
+        query_embedding = self.encoder.encode_image(face_query)
 
         # Step 2: FAISS similarity search
         logger.info(f"Menjalankan FAISS search (top_k={top_k})...")
