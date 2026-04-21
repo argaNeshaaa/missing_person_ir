@@ -206,6 +206,7 @@ class MissingPersonIR:
         query_image: Union[str, Path, Image.Image],
         top_k: int = 10,
         similarity_threshold: float = 0.0,
+        save_query_crop_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Cari orang yang paling mirip dengan foto query.
@@ -232,6 +233,7 @@ class MissingPersonIR:
         t0 = time.perf_counter()
         
         if isinstance(query_image, (str, Path)):
+            query_name = Path(query_image).stem
             query_image = Image.open(query_image).convert("RGB")
 
         # ✅ Crop face dulu, konsisten dengan proses indexing
@@ -239,6 +241,16 @@ class MissingPersonIR:
         if face_query is None:
             logger.warning("Wajah tidak terdeteksi pada query, menggunakan gambar asli.")
             face_query = query_image
+            crop_status = "no_face"
+        else:
+            crop_status = "face_cropped"
+
+        if save_query_crop_dir:
+            query_crops_path = Path(save_query_crop_dir)
+            query_crops_path.mkdir(parents=True, exist_ok=True)
+            save_name = f"{query_name}_{crop_status}.jpg"
+            face_query.save(query_crops_path / save_name, "JPEG")
+        logger.info(f"Query crop disimpan ke: {query_crops_path / save_name}")
 
         query_embedding = self.encoder.encode_image(face_query)
 

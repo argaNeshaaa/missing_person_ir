@@ -84,6 +84,7 @@ def cmd_search(args):
         query_image=args.query,
         top_k=args.top_k,
         similarity_threshold=args.threshold,
+        save_query_crop_dir="debug_crops_real",
     )
 
     print(f"\n  ✓ Selesai dalam {result['search_time_ms']}ms\n")
