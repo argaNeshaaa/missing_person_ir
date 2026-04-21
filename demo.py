@@ -77,7 +77,7 @@ def run_demo():
         ir = MissingPersonIR(clip_model="ViT-B/32", faiss_index_type="flat")
 
         print("\n[3] Indexing database...")
-        ir.index_database(str(data_dir), batch_size=8)
+        ir.index_database(str(data_dir), batch_size=8, save_crops_dir="debug_crops")
         print(f"    ✓ Terindex: {ir.index_manager.total_vectors} foto")
 
         print("\n[4] Menjalankan pencarian demo...")

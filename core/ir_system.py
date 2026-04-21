@@ -64,6 +64,7 @@ class MissingPersonIR:
         metadata_file: Optional[str] = None,
         batch_size: int = 32,
         extensions: tuple = (".jpg", ".jpeg", ".png", ".webp"),
+        save_crops_dir: Optional[str] = None,
     ):
         """
         Index seluruh database foto orang hilang dari sebuah direktori.
@@ -108,6 +109,13 @@ class MissingPersonIR:
         face_images = []
         metadata_list = []
 
+        crops_path = None
+        if save_crops_dir:
+            crops_path = Path(save_crops_dir)
+            crops_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Hasil crop akan disimpan ke: {crops_path}")
+
+
         for path in image_paths:
             try:
                 img = Image.open(path).convert("RGB")
@@ -115,6 +123,13 @@ class MissingPersonIR:
                 if face_image is None:
                     logger.warning(f"Wajah tidak terdeteksi, menggunakan gambar asli: {path}")
                     face_image = img
+                    crop_status = "no_face"
+                else:
+                    crop_status = "face_cropped"
+                    
+                if crops_path is not None:
+                    save_name = f"{path.stem}_{crop_status}.jpg"
+                    face_image.save(crops_path / save_name, "JPEG")
 
                 pil_images.append(img)
                 face_images.append(face_image)
