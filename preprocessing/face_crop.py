@@ -13,17 +13,13 @@ def _ensure_model():
     if not os.path.exists(MODEL_PATH):
         urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
 
-def crop_face(image: Image.Image, padding: float = 0.3) -> Image.Image:
-    """
-    Crop area wajah dari gambar. Return gambar original jika wajah tidak terdeteksi.
-    """
+def crop_face(image: Image.Image, padding: float = 0.01) -> Image.Image:
     _ensure_model()
 
     base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
     options = vision.FaceDetectorOptions(base_options=base_options)
 
     with vision.FaceDetector.create_from_options(options) as detector:
-        # Konversi PIL → MediaPipe Image
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
             data=__import__("numpy").array(image)
@@ -31,9 +27,8 @@ def crop_face(image: Image.Image, padding: float = 0.3) -> Image.Image:
         detections = detector.detect(mp_image)
 
     if not detections.detections:
-        return None  # Tidak ada wajah
+        return None
 
-    # Ambil deteksi pertama
     bbox = detections.detections[0].bounding_box
     w, h = image.size
 
@@ -42,13 +37,15 @@ def crop_face(image: Image.Image, padding: float = 0.3) -> Image.Image:
     x2 = int(bbox.origin_x + bbox.width)
     y2 = int(bbox.origin_y + bbox.height)
 
-    # Tambahkan padding
-    pad_x = int((x2 - x1) * padding)
-    pad_y = int((y2 - y1) * padding)
+    # Tambahkan padding - asimetris untuk menyertakan rambut
+    pad_x = int((x2 - x1) * -0.02)
+    pad_y_top = int((y2 - y1) * (padding + 0.3))
+    pad_y_bottom = int((y2 - y1) * -0.02)
+
     x1 = max(0, x1 - pad_x)
-    y1 = max(0, y1 - pad_y)
+    y1 = max(0, y1 - pad_y_top)
     x2 = min(w, x2 + pad_x)
-    y2 = min(h, y2 + pad_y)
+    y2 = min(h, y2 + pad_y_bottom)
 
     return image.crop((x1, y1, x2, y2))
 

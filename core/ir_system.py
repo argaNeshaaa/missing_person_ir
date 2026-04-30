@@ -90,8 +90,12 @@ class MissingPersonIR:
         # Kumpulkan semua path gambar
         image_paths = []
         for ext in extensions:
-            image_paths.extend(sorted(data_path.glob(f"*{ext}")))
-            image_paths.extend(sorted(data_path.glob(f"*{ext.upper()}")))
+            image_paths.extend(data_path.glob(f"*{ext}"))
+            image_paths.extend(data_path.glob(f"*{ext.upper()}"))
+
+        # Hapus duplikat, jaga urutan
+        image_paths = sorted(set(image_paths))
+        logger.info(f"Ditemukan {len(image_paths)} gambar unik untuk diindex")
 
         assert len(image_paths) > 0, f"Tidak ada gambar ditemukan di: {data_dir}"
         logger.info(f"Ditemukan {len(image_paths)} gambar untuk diindex")
@@ -189,7 +193,7 @@ class MissingPersonIR:
             logger.warning(f"Wajah tidak terdeteksi, menggunakan gambar asli: {image}")
             face_image = image
 
-        embedding = self.encoder.encode_image(image)
+        embedding = self.encoder.encode_image(face_image)
         embedding = embedding.reshape(1, -1)
 
         if not self.index_manager._is_trained:

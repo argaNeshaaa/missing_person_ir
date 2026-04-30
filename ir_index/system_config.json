@@ -1,6 +1,6 @@
 {
-  "clip_model": "ViT-B/32",
+  "clip_model": "ViT-L/14",
   "faiss_index_type": "ivf",
-  "indexed_count": 117,
-  "saved_at": "2026-04-21T18:52:48.275306"
+  "indexed_count": 124,
+  "saved_at": "2026-05-01T00:01:46.796480"
 }
