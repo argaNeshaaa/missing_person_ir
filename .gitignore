@@ -11,4 +11,5 @@ debug_crops/*
 debug_crops_real/*
 !debug_crops_real/.gitkeep
 data/persons/*
+!data/persons/
 !data/persons/.gitkeep
