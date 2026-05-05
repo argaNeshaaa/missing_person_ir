@@ -1,6 +1,0 @@
-{
-  "clip_model": "ViT-L/14",
-  "faiss_index_type": "hnsw",
-  "indexed_count": 124,
-  "saved_at": "2026-05-05T19:38:45.108762"
-}
