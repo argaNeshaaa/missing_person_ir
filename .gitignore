@@ -5,3 +5,4 @@ ir_index/metadata.pkl
 ir_index/system_config.json
 __pycache__/
 *.pyc
+venv/
