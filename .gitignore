@@ -1,0 +1,5 @@
+.env
+ir_index/config.json
+ir_index/faiss.index
+ir_index/metadata.pkl
+ir_index/system_config.json
