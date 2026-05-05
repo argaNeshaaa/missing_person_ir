@@ -6,3 +6,5 @@ ir_index/system_config.json
 __pycache__/
 *.pyc
 venv/
+debug_crops/*
+debug_crops_real/*
