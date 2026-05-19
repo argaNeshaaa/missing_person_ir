@@ -13,3 +13,4 @@ debug_crops_real/*
 data/persons/*
 !data/persons/
 !data/persons/.gitkeep
+upload_to_cloudinary.py

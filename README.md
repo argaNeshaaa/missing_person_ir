@@ -16,11 +16,13 @@ missing_person_ir/
 │   ├── clip_encoder.py     ← CLIP Image Encoder (menghasilkan embedding)
 │   ├── faiss_index.py      ← FAISS Index Manager (similarity search)
 │   └── ir_system.py        ← Sistem utama (menggabungkan keduanya)
-├── api.py                  ← FastAPI REST API server
-├── cli.py                  ← Command-line interface
-├── demo.py                 ← Demo end-to-end dengan data sintetis
-├── requirements.txt
-└── README.md
+├── main.py                 ← FastAPI REST API server
+├── .env.example            ← Format Global Variabel
+├── requirements.txt        ← Daftar Library yang digunakan
+└── README.md               ← Petunjuk Penggunaan
+└── test2.jpg               ← Contoh Gambar AI sebagai Testing
+└── test3.jpg               ← Contoh Gambar AI sebagai Testing
+└── test4.jpg               ← Contoh Gambar AI sebagai Testing
 ```
 
 ---
@@ -33,15 +35,20 @@ cd missing_person_ir
 
 # 2. Buat virtual environment
 python -m venv venv
-source venv/bin/activate          # Linux/Mac
-# venv\Scripts\activate           # Windows
+
+# source venv/bin/activate          ← Pengguna Linux/Mac
+venv\Scripts\activate           #   ← Pengguna Windows
 
 # 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Buat File .env
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ---
-
 ## Pipeline Sistem
 
 ```
@@ -77,119 +84,57 @@ Foto Query
 ---
 
 ## Cara Penggunaan
-
-### 1. Siapkan Data Database
-
-```
-data/persons/
-├── P001_Budi_Santoso.jpg
-├── P002_Dewi_Rahayu.jpg
-└── ...
+### 1. CLI
+#### Indexing
+```bash
+python cli.py index --folder Home/missing_person_ir/data/persons --model ViT-L/14 --faiss hnsw 
 ```
 
-Atau dengan metadata JSON (`data/metadata.json`):
-```json
-[
-  {
-    "person_id": "P001",
-    "name": "Budi Santoso",
-    "age": 35,
-    "gender": "Laki-laki",
-    "last_seen_location": "Jakarta Selatan",
-    "last_seen_date": "2024-03-15",
-    "contact": "081234567890",
-    "image_path": "data/persons/P001_Budi_Santoso.jpg"
-  }
-]
+### Search
+```bash
+python cli.py search --query test2.jpg --top-k 5 --threshold 0.6
 ```
 
-### 2. Gunakan CLI
+### 2. Jalankan REST API
+
 
 ```bash
-# Index database
-python cli.py index --data-dir data/persons/ --model ViT-B/32 --faiss ivf
-
-# Cari orang mirip
-python cli.py search --query foto_query.jpg --top-k 5 --threshold 0.6
-
-# Tambah satu orang ke index
-python cli.py add \
-    --image foto.jpg \
-    --id P099 \
-    --name "Andi Wijaya" \
-    --age 28 \
-    --location "Bandung" \
-    --date "2024-06-01" \
-    --contact "08987654321"
-```
-
-### 3. Gunakan sebagai Library Python
-
-```python
-from core import MissingPersonIR
-from PIL import Image
-
-# Inisialisasi sistem
-ir = MissingPersonIR(
-    clip_model="ViT-B/32",      # atau "ViT-L/14" untuk akurasi lebih tinggi
-    faiss_index_type="ivf",     # atau "flat", "hnsw", "ivfpq"
-)
-
-# Index database
-ir.index_database("data/persons/", metadata_file="data/metadata.json")
-
-# Simpan index (agar tidak perlu re-encode setiap kali)
-ir.save("ir_index/")
-
-# Load dari disk (berikutnya)
-ir = MissingPersonIR.load("ir_index/")
-
-# Cari orang mirip
-query_img = Image.open("foto_orang_hilang.jpg")
-result = ir.search(query_img, top_k=5, similarity_threshold=0.6)
-
-for r in result["results"]:
-    print(f"#{r.rank} {r.name} — {r.similarity_pct:.1f}%")
-    print(f"   Lokasi terakhir: {r.metadata.get('last_seen_location')}")
-    print(f"   Kontak         : {r.metadata.get('contact')}")
-```
-
-### 4. Jalankan REST API
-
-```bash
-python api.py
+uvicorn main:app --reload
 # Server berjalan di http://localhost:8000
 # Dokumentasi API: http://localhost:8000/docs
 ```
 
-Contoh request dengan `curl`:
-```bash
-# Cari orang mirip
-curl -X POST http://localhost:8000/search \
-  -F "file=@foto_query.jpg" \
-  -F "top_k=5" \
-  -F "similarity_threshold=0.6"
+## Daftar Endpoint API
 
-# Tambah orang ke database
-curl -X POST http://localhost:8000/index/add \
-  -F "file=@foto.jpg" \
-  -F "person_id=P099" \
-  -F "name=Andi Wijaya" \
-  -F "age=28" \
-  -F "last_seen_location=Bandung"
-
-# Status sistem
-curl http://localhost:8000/status
-```
-
-### 5. Jalankan Demo
-
-```bash
-python demo.py
-# Membuat data sintetis, mengindex, dan menjalankan pencarian otomatis
-```
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| `GET` | `/health` | Mengecek status sistem, model CLIP, dan jumlah data yang terindex |
+| `GET` | `/persons` | Mengambil semua data orang yang aktif di index |
+| `POST` | `/persons` | Upload foto dan menambahkan orang baru ke index |
+| `DELETE` | `/persons/{public_id}` | Menghapus data orang dari index dan Cloudinary |
+| `POST` | `/search` | Mencari orang berdasarkan foto query |
+| `POST` | `/index/rebuild` | Rebuild FAISS index dan menghapus vector orphan |
+| `POST` | `/index/reload` | Reload index dari disk tanpa restart server |
 
 ---
+
+## Detail Endpoint
+
+| Endpoint | Parameter | Keterangan |
+|---|---|---|
+| `/search` | `file` | Foto query JPG/PNG |
+| `/search` | `top_k` | Jumlah hasil pencarian |
+| `/search` | `similarity_threshold` | Minimum similarity score |
+| `/persons` | `file` | Foto orang |
+| `/persons` | `person_id` | ID unik orang |
+| `/persons` | `name` | Nama lengkap |
+| `/persons` | `age` | Umur |
+| `/persons` | `last_seen_location` | Lokasi terakhir terlihat |
+| `/persons` | `last_seen_date` | Tanggal terakhir terlihat |
+| `/persons` | `contact` | Kontak keluarga/kerabat |
+| `/persons/{public_id}` | `public_id` | Cloudinary public ID |
+| `/persons/{public_id}` | `delete_from_cloudinary` | Hapus juga file dari Cloudinary |
+
 
 ## Pemilihan FAISS Index
 
