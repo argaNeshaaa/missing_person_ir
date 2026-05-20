@@ -10,7 +10,7 @@ faiss-cpu>=1.7.4       # CPU only (default)
 # API Server
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
-python-multipart>=0.0.9
+python-multipart>=0.0.9 
 pydantic>=2.0.0
 
 # Image processing
@@ -25,4 +25,6 @@ python-dotenv>=1.0.0
 Pillow>=10.0.0
 requests>=2.31.0
 cloudinary>=1.40.0
- 
+deepface
+opencv-python
+tf-keras

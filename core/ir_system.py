@@ -32,12 +32,13 @@ import cloudinary.uploader
 
 from preprocessing.face_crop import crop_face, load_image_with_exif
 from .clip_encoder import CLIPEncoder
+from .arc_encoder import ArcFaceEncoder
 from .faiss_index import FAISSIndexManager, SearchResult
 
 logger = logging.getLogger(__name__)
 
 # ── Konstanta ──────────────────────────────────────────────────────────────────
-MIN_FACE_SIZE_PX: int = 112          # crop di bawah ini terlalu kecil untuk CLIP
+MIN_FACE_SIZE_PX: int = 160          # crop di bawah ini terlalu kecil untuk CLIP
 MAX_DOWNLOAD_RETRIES: int = 3        # retry untuk download Cloudinary
 RETRY_BACKOFF_SECONDS: float = 1.5  # exponential backoff multiplier
 DOWNLOAD_TIMEOUT_SECONDS: int = 20  # timeout per request
@@ -150,7 +151,7 @@ def _build_original_quality_url(secure_url: str) -> str:
         Input : https://res.cloudinary.com/demo/image/upload/v174.../foto.jpg
         Output: https://res.cloudinary.com/demo/image/upload/q_95/v174.../foto.jpg
     """
-    return secure_url.replace("/upload/", "/upload/q_95/", 1)
+    return secure_url.replace("/upload/", "/upload/a_exif,q_100/", 1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -304,7 +305,7 @@ def _preprocess_face(
     img: Image.Image,
     source_id: str,
     strict_face_detection: bool = True,
-    # save_crop_dir: Optional[Path] = None,
+    save_crop_dir: Optional[Path] = None,
     crop_suffix: str = "",
 ) -> Optional[Image.Image]:
     """
@@ -355,14 +356,14 @@ def _preprocess_face(
             face_image = img
 
     # ── Simpan crop jika diminta ───────────────────────────────────────────
-    # if save_crop_dir is not None and face_image is not None:
-    #     crop_status = "face_cropped" if is_valid else "fallback_full"
-    #     save_name = f"{Path(source_id).stem}_{crop_status}{crop_suffix}.jpg"
-    #     try:
-    #         face_image.save(save_crop_dir / save_name, "JPEG")
-    #         logger.debug(f"[{source_id}] Crop disimpan: {save_crop_dir / save_name}")
-    #     except OSError as exc:
-    #         logger.warning(f"[{source_id}] Gagal menyimpan crop: {exc}")
+    if save_crop_dir is not None and face_image is not None:
+        crop_status = "face_cropped" if is_valid else "fallback_full"
+        save_name = f"{Path(source_id).stem}_{crop_status}{crop_suffix}.jpg"
+        try:
+            face_image.save(save_crop_dir / save_name, "JPEG")
+            logger.debug(f"[{source_id}] Crop disimpan: {save_crop_dir / save_name}")
+        except OSError as exc:
+            logger.warning(f"[{source_id}] Gagal menyimpan crop: {exc}")
 
     return face_image
 
@@ -413,7 +414,7 @@ class MissingPersonIR:
         logger.info("Initializing Missing Person IR System...")
         _configure_cloudinary(cloud_name, api_key, api_secret)
 
-        self.encoder = CLIPEncoder(model_name=clip_model, device=device)
+        self.encoder = ArcFaceEncoder(device=device)
         self.index_manager = FAISSIndexManager(
             dim=self.encoder.dim,
             index_type=faiss_index_type,
@@ -505,7 +506,7 @@ class MissingPersonIR:
                 img=img,
                 source_id=public_id,
                 strict_face_detection=self.strict_face_detection,
-                # save_crop_dir=crops_path,
+                save_crop_dir=crops_path,
             )
 
             if face_image is None:
@@ -719,7 +720,7 @@ class MissingPersonIR:
             img=query_pil,
             source_id=query_source_id,
             strict_face_detection=self.strict_face_detection,
-            # save_crop_dir=crops_path,
+            save_crop_dir=crops_path,
             crop_suffix="_query",
         )
 
