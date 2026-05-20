@@ -50,7 +50,7 @@ BANNER = """
 def _build_ir(args) -> MissingPersonIR:
     """Buat instance IR dengan kredensial Cloudinary dari argumen / env."""
     return MissingPersonIR(
-        clip_model=getattr(args, "model", "ViT-B/32"),
+        # clip_model=getattr(args, "model", "ViT-B/32"),
         faiss_index_type=getattr(args, "faiss", "ivf"),
         cloud_name=getattr(args, "cloud_name", None),
         api_key=getattr(args, "api_key", None),
@@ -74,7 +74,7 @@ def cmd_index(args):
     """Index seluruh gambar dari folder Cloudinary."""
     print(BANNER)
     print(f"[+] Cloudinary Folder : {args.folder}")
-    print(f"[+] Model CLIP        : {args.model}")
+    # print(f"[+] Model CLIP        : {args.model}")
     print(f"[+] FAISS Index       : {args.faiss}")
     print(f"[+] Batch Size        : {args.batch_size}")
     print(f"[+] Max Results       : {args.max_results}")
@@ -237,11 +237,11 @@ def main():
         "--folder", required=True,
         help="Nama folder di Cloudinary (misal: missing_persons)"
     )
-    p_index.add_argument(
-        "--model", default="ViT-B/32",
-        choices=["ViT-B/32", "ViT-L/14", "ViT-B/16"],
-        help="Model CLIP (default: ViT-B/32)"
-    )
+    # p_index.add_argument(
+    #     "--model", default="ViT-B/32",
+    #     choices=["ViT-B/32", "ViT-L/14", "ViT-B/16"],
+    #     help="Model CLIP (default: ViT-B/32)"
+    # )
     p_index.add_argument(
         "--faiss", default="ivf",
         choices=["flat", "ivf", "hnsw", "ivfpq"],

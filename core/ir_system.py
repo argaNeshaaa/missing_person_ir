@@ -31,14 +31,13 @@ import cloudinary.api
 import cloudinary.uploader
 
 from preprocessing.face_crop import crop_face, load_image_with_exif
-from .clip_encoder import CLIPEncoder
 from .arc_encoder import ArcFaceEncoder
 from .faiss_index import FAISSIndexManager, SearchResult
 
 logger = logging.getLogger(__name__)
 
 # ── Konstanta ──────────────────────────────────────────────────────────────────
-MIN_FACE_SIZE_PX: int = 160          # crop di bawah ini terlalu kecil untuk CLIP
+MIN_FACE_SIZE_PX: int = 160          # crop di bawah ini terlalu kecil untuk ArcFace
 MAX_DOWNLOAD_RETRIES: int = 3        # retry untuk download Cloudinary
 RETRY_BACKOFF_SECONDS: float = 1.5  # exponential backoff multiplier
 DOWNLOAD_TIMEOUT_SECONDS: int = 20  # timeout per request
@@ -392,7 +391,7 @@ class MissingPersonIR:
 
     def __init__(
         self,
-        clip_model: str = "ViT-B/32",
+        # clip_model: str = "ViT-B/32",
         faiss_index_type: str = "ivf",
         device: Optional[str] = None,
         strict_face_detection: bool = True,
@@ -419,14 +418,14 @@ class MissingPersonIR:
             dim=self.encoder.dim,
             index_type=faiss_index_type,
         )
-        self.clip_model = clip_model
+        # self.clip_model = clip_model
         self.faiss_index_type = faiss_index_type
         self.strict_face_detection = strict_face_detection
         self._indexed_count: int = 0
         self._deleted_public_ids: set = set()  # soft delete registry
 
         logger.info(
-            f"IR System siap: clip={clip_model}, faiss={faiss_index_type}, "
+            f"IR System siap: faiss={faiss_index_type}, "
             f"strict_face_detection={strict_face_detection}"
         )
 
@@ -532,7 +531,7 @@ class MissingPersonIR:
             )
 
         logger.info(
-            f"Encoding {len(face_images)} gambar dengan CLIP (batch_size={batch_size})..."
+            f"Encoding {len(face_images)} gambar dengan ArcFace (batch_size={batch_size})..."
         )
         embeddings = self.encoder.encode_batch(face_images, batch_size=batch_size)
 
@@ -872,7 +871,7 @@ class MissingPersonIR:
         """Simpan seluruh index ke disk."""
         self.index_manager.save(save_dir)
         config = {
-            "clip_model": self.clip_model,
+            # "clip_model": self.clip_model,
             "faiss_index_type": self.faiss_index_type,
             "strict_face_detection": self.strict_face_detection,
             "indexed_count": self._indexed_count,
@@ -897,7 +896,7 @@ class MissingPersonIR:
             config = json.load(f)
 
         system = cls(
-            clip_model=config["clip_model"],
+            # clip_model=config["clip_model"],
             faiss_index_type=config["faiss_index_type"],
             strict_face_detection=config.get("strict_face_detection", True),
             cloud_name=cloud_name,
@@ -915,7 +914,7 @@ class MissingPersonIR:
     def __repr__(self) -> str:
         return (
             f"MissingPersonIR("
-            f"clip={self.clip_model}, "
+            # f"clip={self.clip_model}, "
             f"faiss={self.faiss_index_type}, "
             f"indexed={self._indexed_count}, "
             f"strict_face={self.strict_face_detection})"
