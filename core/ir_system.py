@@ -37,7 +37,7 @@ from .faiss_index import FAISSIndexManager, SearchResult
 logger = logging.getLogger(__name__)
 
 # ── Konstanta ──────────────────────────────────────────────────────────────────
-MIN_FACE_SIZE_PX: int = 112          # crop di bawah ini terlalu kecil untuk CLIP
+MIN_FACE_SIZE_PX: int = 160          # crop di bawah ini terlalu kecil untuk CLIP
 MAX_DOWNLOAD_RETRIES: int = 3        # retry untuk download Cloudinary
 RETRY_BACKOFF_SECONDS: float = 1.5  # exponential backoff multiplier
 DOWNLOAD_TIMEOUT_SECONDS: int = 20  # timeout per request
@@ -150,7 +150,7 @@ def _build_original_quality_url(secure_url: str) -> str:
         Input : https://res.cloudinary.com/demo/image/upload/v174.../foto.jpg
         Output: https://res.cloudinary.com/demo/image/upload/q_95/v174.../foto.jpg
     """
-    return secure_url.replace("/upload/", "/upload/q_95/", 1)
+    return secure_url.replace("/upload/", "/upload/a_exif,q_100/", 1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -304,7 +304,7 @@ def _preprocess_face(
     img: Image.Image,
     source_id: str,
     strict_face_detection: bool = True,
-    # save_crop_dir: Optional[Path] = None,
+    save_crop_dir: Optional[Path] = None,
     crop_suffix: str = "",
 ) -> Optional[Image.Image]:
     """

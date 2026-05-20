@@ -87,7 +87,7 @@ Foto Query
 ### 1. CLI
 #### Indexing
 ```bash
-python cli.py index --folder Home/missing_person_ir/data/persons --model ViT-L/14 --faiss hnsw 
+python cli.py index --folder Home/missing_person_ir/data/persons --faiss hnsw 
 ```
 
 ### Search
