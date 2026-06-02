@@ -37,7 +37,7 @@ from .faiss_index import FAISSIndexManager, SearchResult
 logger = logging.getLogger(__name__)
 
 # ── Konstanta ──────────────────────────────────────────────────────────────────
-MIN_FACE_SIZE_PX: int = 160          # crop di bawah ini terlalu kecil untuk ArcFace
+MIN_FACE_SIZE_PX: int = 120          # crop di bawah ini terlalu kecil untuk ArcFace
 MAX_DOWNLOAD_RETRIES: int = 3        # retry untuk download Cloudinary
 RETRY_BACKOFF_SECONDS: float = 1.5  # exponential backoff multiplier
 DOWNLOAD_TIMEOUT_SECONDS: int = 20  # timeout per request
