@@ -746,6 +746,20 @@ class MissingPersonIR:
                 f"(minimum {MIN_FACE_SIZE_PX}px). "
                 f"Jika ingin mengizinkan gambar tanpa wajah, set strict_face_detection=False."
             )
+        
+        img_arr = np.array(face_query.convert("RGB"))
+        attrs = self.encoder.extract_face_attributes(img_arr)
+        
+        detected_gender = attrs.get("gender") # Hasil AI: "pria" atau "wanita"
+        confidence = attrs.get("gender_confidence")
+        
+        logger.info(f"[SEARCH AI] Wajah di foto diupload terdeteksi sebagai: '{detected_gender}' ({confidence}%)")
+
+        # Kita jadikan hasil AI ini sebagai prioritas pencarian. 
+        # Jika AI berhasil mendeteksi (bukan "unknown"), timpa parameter filter_gender
+        if detected_gender and detected_gender != "unknown":
+            filter_gender = detected_gender
+
 
         # ── Encode + Search ────────────────────────────────────────────────
         query_embedding = self.encoder.encode_image(face_query)
@@ -805,6 +819,7 @@ class MissingPersonIR:
             "total_searched": self.index_manager.total_vectors,
             "top_k": top_k,
             "similarity_threshold": similarity_threshold,
+            "detected_gender": detected_gender,
         }
 
     # ─────────────────────────────────────────────

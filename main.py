@@ -131,6 +131,7 @@ class SearchResponse(BaseModel):
     query_id: str
     total_searched: int
     search_time_ms: float
+    detected_gender: Optional[str] = Field(None, description="Gender yang dideteksi otomatis oleh AI dari foto query")
     results: List[SearchResultItem]
 
 
@@ -266,7 +267,6 @@ async def search(
     top_k: int = Form(default=5, ge=1, le=MAX_SEARCH_RESULTS, description="Jumlah hasil"),
     similarity_threshold: float = Form(default=0.0, ge=0.0, le=1.0),
     name: Optional[str] = Form(None),
-    gender: Optional[str] = Form(None, description="Saring gender ketat ('pria'/'wanita')"),
     age: Optional[int] = Form(None),
     last_seen_location: Optional[str] = Form(None),
     last_seen_date: Optional[str] = Form(None),
@@ -293,7 +293,7 @@ async def search(
             top_k=top_k,
             similarity_threshold=similarity_threshold,
             filter_name=name,
-            filter_gender=gender,
+            filter_gender=None,
             filter_age=age,
             filter_location=last_seen_location,
             filter_date=last_seen_date,
@@ -319,6 +319,7 @@ async def search(
         query_id=file.filename or "query",
         total_searched=result["total_searched"],
         search_time_ms=result["search_time_ms"],
+        detected_gender=result.get("detected_gender"),
         results=results,
     )
 
