@@ -137,6 +137,7 @@ class FAISSIndexManager:
         query_embedding: np.ndarray,
         top_k: int = 10,
         similarity_threshold: float = 0.0,
+        filter_gender: Optional[str] = None,
     ) -> List[SearchResult]:
         """
         Cari K embedding paling mirip dengan query.
@@ -154,29 +155,45 @@ class FAISSIndexManager:
         # FAISS butuh shape (1, dim)
         query = query_embedding.astype(np.float32).reshape(1, -1)
 
-        scores, indices = self.index.search(query, top_k)
+        fetch_k = top_k * 5 if filter_gender else top_k
+        scores, indices = self.index.search(query, fetch_k)
         scores = scores[0]     # shape (top_k,)
         indices = indices[0]   # shape (top_k,)
 
         results = []
-        for rank, (score, idx) in enumerate(zip(scores, indices), start=1):
-            if idx == -1:      # FAISS mengembalikan -1 jika tidak cukup data
+        rank_counter = 1
+        for score, idx in zip(scores, indices):
+            if idx == -1:      
                 continue
             if score < similarity_threshold:
                 continue
 
             meta = self.metadata_store[idx]
+            
+            # ── CASCADE FILTERING: GENDER ─────────────────────────────────────
+            # Lewati iterasi jika filter gender aktif dan tidak sesuai metadata gambar target
+            if filter_gender and meta.get("gender") and meta.get("gender").lower() != filter_gender.lower():
+                continue
+
+            # ── FORMULA NORMALISASI SKOR RELEVANSI ───────────────────────────
+            # Mengubah skor Cosine [-1, 1] menjadi skala persentase linear [0, 100]
+            normalized_pct = round(((float(score) + 1.0) / 2.0) * 100, 2)
+
             results.append(
                 SearchResult(
-                    rank=rank,
+                    rank=rank_counter,
                     person_id=meta.get("person_id", str(idx)),
                     name=meta.get("name", f"Person_{idx}"),
                     similarity_score=float(score),
-                    similarity_pct=round(float(score) * 100, 2),
+                    similarity_pct=normalized_pct, # Persentase sekarang akurat secara matematis
                     metadata=meta,
                     image_path=meta.get("image_path", ""),
                 )
             )
+            
+            rank_counter += 1
+            if len(results) >= top_k:
+                break
 
         return results
 
@@ -245,3 +262,10 @@ class FAISSIndexManager:
     @property
     def total_vectors(self) -> int:
         return self.index.ntotal if self.index else 0
+    
+    def get_all_metadata(self) -> List[Dict[str, Any]]:
+        """
+        Mengembalikan seluruh daftar metadata yang ada di dalam metadata_store.
+        Digunakan oleh endpoint GET /persons untuk melist semua data.
+        """
+        return [m.copy() for m in self.metadata_store]

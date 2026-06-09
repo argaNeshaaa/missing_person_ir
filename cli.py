@@ -85,7 +85,7 @@ def cmd_index(args):
         folder=args.folder,
         batch_size=args.batch_size,
         max_results=args.max_results,
-        save_crops_dir="debug_crops",
+        # save_crops_dir="debug_crops",
     )
     ir.save(INDEX_DIR)
 
@@ -124,7 +124,7 @@ def cmd_search(args):
         query_image=args.query,
         top_k=args.top_k,
         similarity_threshold=args.threshold,
-        save_query_crop_dir="debug_crops",
+        # save_query_crop_dir="debug_crops",
     )
 
     print(f"\n  ✓ Selesai dalam {result['search_time_ms']}ms\n")

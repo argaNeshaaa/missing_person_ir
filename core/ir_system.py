@@ -14,7 +14,6 @@ Refactor notes:
     - Search pipeline konsisten dengan indexing pipeline
     - Logging lebih granular untuk debug retrieval accuracy
 """
-
 import io
 import json
 import logging
@@ -304,7 +303,7 @@ def _preprocess_face(
     img: Image.Image,
     source_id: str,
     strict_face_detection: bool = True,
-    save_crop_dir: Optional[Path] = None,
+    # save_crop_dir: Optional[Path] = None,
     crop_suffix: str = "",
 ) -> Optional[Image.Image]:
     """
@@ -355,14 +354,14 @@ def _preprocess_face(
             face_image = img
 
     # ── Simpan crop jika diminta ───────────────────────────────────────────
-    if save_crop_dir is not None and face_image is not None:
-        crop_status = "face_cropped" if is_valid else "fallback_full"
-        save_name = f"{Path(source_id).stem}_{crop_status}{crop_suffix}.jpg"
-        try:
-            face_image.save(save_crop_dir / save_name, "JPEG")
-            logger.debug(f"[{source_id}] Crop disimpan: {save_crop_dir / save_name}")
-        except OSError as exc:
-            logger.warning(f"[{source_id}] Gagal menyimpan crop: {exc}")
+    # if save_crop_dir is not None and face_image is not None:
+    #     crop_status = "face_cropped" if is_valid else "fallback_full"
+    #     save_name = f"{Path(source_id).stem}_{crop_status}{crop_suffix}.jpg"
+    #     try:
+    #         face_image.save(save_crop_dir / save_name, "JPEG")
+    #         logger.debug(f"[{source_id}] Crop disimpan: {save_crop_dir / save_name}")
+    #     except OSError as exc:
+    #         logger.warning(f"[{source_id}] Gagal menyimpan crop: {exc}")
 
     return face_image
 
@@ -505,7 +504,7 @@ class MissingPersonIR:
                 img=img,
                 source_id=public_id,
                 strict_face_detection=self.strict_face_detection,
-                save_crop_dir=crops_path,
+                # save_crop_dir=crops_path,
             )
 
             if face_image is None:
@@ -520,8 +519,20 @@ class MissingPersonIR:
                     stats["skipped_corrupt"] += 1
                 continue
 
+            img_arr = np.array(face_image.convert("RGB"))
+            attrs = self.encoder.extract_face_attributes(img_arr)
+
+            # Gabungkan ke metadata standar sistem Anda
+            meta = _resource_to_metadata(res)
+            meta["gender"] = attrs["gender"] # Menyimpan nilai "pria" atau "wanita"
+            meta["gender_confidence"] = attrs["gender_confidence"]
+            if not meta.get("age"): 
+                meta["age"] = attrs["estimated_age"] # Gunakan prediksi AI jika metadata asli kosong
+
+            
+
             face_images.append(face_image)
-            metadata_list.append(_resource_to_metadata(res))
+            metadata_list.append(meta)
 
         if len(face_images) == 0:
             raise RuntimeError(
@@ -658,7 +669,12 @@ class MissingPersonIR:
         query_image: Union[str, Path, Image.Image],
         top_k: int = 10,
         similarity_threshold: float = 0.0,
-        save_query_crop_dir: Optional[str] = None,
+        filter_name: Optional[str] = None,
+        filter_gender: Optional[str] = None,
+        filter_age: Optional[int] = None,
+        filter_location: Optional[str] = None,
+        filter_date: Optional[str] = None,
+        # save_query_crop_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Cari orang yang paling mirip dengan foto query.
@@ -710,16 +726,16 @@ class MissingPersonIR:
         # ── Preprocessing via shared pipeline ─────────────────────────────
         # PENTING: harus menggunakan pipeline YANG SAMA dengan indexing.
         # Jika indexing menggunakan crop wajah, search juga harus crop wajah.
-        crops_path: Optional[Path] = None
-        if save_query_crop_dir:
-            crops_path = Path(save_query_crop_dir)
-            crops_path.mkdir(parents=True, exist_ok=True)
+        # crops_path: Optional[Path] = None
+        # if save_query_crop_dir:
+        #     crops_path = Path(save_query_crop_dir)
+        #     crops_path.mkdir(parents=True, exist_ok=True)
 
         face_query = _preprocess_face(
             img=query_pil,
             source_id=query_source_id,
             strict_face_detection=self.strict_face_detection,
-            save_crop_dir=crops_path,
+            # save_crop_dir=crops_path,
             crop_suffix="_query",
         )
 
@@ -733,16 +749,46 @@ class MissingPersonIR:
 
         # ── Encode + Search ────────────────────────────────────────────────
         query_embedding = self.encoder.encode_image(face_query)
+        fetch_k = top_k * 5 + len(self._deleted_public_ids)
         raw_results = self.index_manager.search(
             query_embedding=query_embedding,
-            top_k=top_k + len(self._deleted_public_ids),  # ambil lebih untuk kompensasi filter
+            top_k=fetch_k,  # ambil lebih untuk kompensasi filter
             similarity_threshold=similarity_threshold,
+            filter_gender=filter_gender,
         )
         # Filter hasil yang sudah di-soft-delete
         results = [
             r for r in raw_results
             if r.metadata.get('cloudinary_public_id') not in self._deleted_public_ids
-        ][:top_k]
+        ]
+        if filter_name:
+            keyword = filter_name.lower().strip()
+            results = [
+                r for r in results
+                if keyword in (r.metadata.get("name") or "").lower()
+            ]
+
+        if filter_age is not None:
+            results = [
+                r for r in results
+                if r.metadata.get("age") is not None
+                and abs(int(r.metadata["age"]) - filter_age) <= 5  # toleransi ±5 tahun
+            ]
+
+        if filter_location:
+            keyword = filter_location.lower().strip()
+            results = [
+                r for r in results
+                if keyword in (r.metadata.get("last_seen_location") or "").lower()
+            ]
+
+        if filter_date:
+            results = [
+                r for r in results
+                if r.metadata.get("last_seen_date") == filter_date
+            ]
+
+        results = results[:top_k]
         search_time_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         logger.info(

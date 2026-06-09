@@ -28,3 +28,4 @@ cloudinary>=1.40.0
 deepface
 opencv-python
 tf-keras
+transformers

@@ -116,6 +116,8 @@ class SearchResultItem(BaseModel):
     similarity: float = Field(..., description="Cosine similarity 0.0–1.0")
     person_id: str
     name: str
+    gender: Optional[str] = Field(None, description="Hasil prediksi/filter gender: pria/wanita") # BARU
+    gender_confidence: Optional[float] = Field(None, description="Tingkat akurasi klasifikasi gender AI")
     age: Optional[str] = None
     last_seen_location: Optional[str] = None
     last_seen_date: Optional[str] = None
@@ -135,6 +137,8 @@ class SearchResponse(BaseModel):
 class PersonItem(BaseModel):
     person_id: str
     name: str
+    gender: Optional[str] = None
+    gender_confidence: Optional[float] = None
     age: Optional[str] = None
     last_seen_location: Optional[str] = None
     last_seen_date: Optional[str] = None
@@ -215,6 +219,8 @@ def _result_to_schema(rank: int, result: Any) -> SearchResultItem:
         similarity=round(float(result.similarity_score), 4),
         person_id=result.person_id or m.get("person_id", ""),
         name=result.name or m.get("name", ""),
+        gender=m.get("gender"), # BARU
+        gender_confidence=m.get("gender_confidence"),
         age=m.get("age"),
         last_seen_location=m.get("last_seen_location"),
         last_seen_date=m.get("last_seen_date"),
@@ -244,7 +250,7 @@ def health():
         indexed_count=ir._indexed_count,
         deleted_count=len(ir._deleted_public_ids),
         index_type=ir.faiss_index_type,
-        clip_model=ir.clip_model,
+        clip_model="ArcFace",
     )
 
 
@@ -259,6 +265,11 @@ async def search(
     file: UploadFile = File(..., description="Foto query (JPG/PNG)"),
     top_k: int = Form(default=5, ge=1, le=MAX_SEARCH_RESULTS, description="Jumlah hasil"),
     similarity_threshold: float = Form(default=0.0, ge=0.0, le=1.0),
+    name: Optional[str] = Form(None),
+    gender: Optional[str] = Form(None, description="Saring gender ketat ('pria'/'wanita')"),
+    age: Optional[int] = Form(None),
+    last_seen_location: Optional[str] = Form(None),
+    last_seen_date: Optional[str] = Form(None),
 ):
     """
     Upload foto query → sistem mencari top-K orang paling mirip di database.
@@ -281,6 +292,11 @@ async def search(
             query_image=query_pil,
             top_k=top_k,
             similarity_threshold=similarity_threshold,
+            filter_name=name,
+            filter_gender=gender,
+            filter_age=age,
+            filter_location=last_seen_location,
+            filter_date=last_seen_date,
         )
     except ValueError as exc:
         # Wajah tidak terdeteksi pada foto query
@@ -330,6 +346,8 @@ def list_persons():
         PersonItem(
             person_id=m.get("person_id", ""),
             name=m.get("name", ""),
+            gender=m.get("gender"),                     # <--- TAMBAHKAN INI
+            gender_confidence=m.get("gender_confidence"),
             age=m.get("age"),
             last_seen_location=m.get("last_seen_location"),
             last_seen_date=m.get("last_seen_date"),
@@ -409,6 +427,51 @@ async def add_person(
         "message": f"'{name}' berhasil ditambahkan ke index.",
     }
 
+#Update person metadata
+@app.patch("/persons/{public_id:path}")
+async def update_person_metadata(
+    public_id: str,
+    gender: Optional[str] = Form(None, description="Ubah gender: pria/wanita"),
+    age: Optional[str] = Form(None),
+    last_seen_location: Optional[str] = Form(None),
+    last_seen_date: Optional[str] = Form(None),
+    contact: Optional[str] = Form(None),
+):
+    ir = _get_ir()
+
+    # 1. Update context di Cloudinary
+    context_pairs = "&".join(
+        f"{k}={v}" for k, v in {
+            "gender": gender,
+            "age": age,
+            "last_seen_location": last_seen_location,
+            "last_seen_date": last_seen_date,
+            "contact": contact,
+        }.items() if v is not None
+    )
+    cloudinary.uploader.explicit(
+        public_id,
+        type="upload",
+        context=context_pairs,
+    )
+
+    # 2. Update metadata di FAISS metadata_store (in-memory)
+    for meta in ir.index_manager.metadata_store:
+        if meta.get("cloudinary_public_id") == public_id:
+            if age is not None:
+                meta["age"] = age
+            if last_seen_location is not None:
+                meta["last_seen_location"] = last_seen_location
+            if last_seen_date is not None:
+                meta["last_seen_date"] = last_seen_date
+            if contact is not None:
+                meta["contact"] = contact
+            break
+
+    # 3. Simpan metadata.pkl yang sudah diupdate
+    ir.save(IR_INDEX_DIR)
+
+    return {"success": True, "public_id": public_id, "message": "Metadata diperbarui."}
 
 # ── DELETE /persons/{public_id:path} ──────────────────────────────────────────
 
